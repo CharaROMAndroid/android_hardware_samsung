@@ -11,6 +11,7 @@
 
 #include <android-base/logging.h>
 #include <android-base/parseint.h>
+#include <android-base/properties.h>
 #include <android-base/strings.h>
 
 #include <fcntl.h>
@@ -179,6 +180,15 @@ void Fingerprint::handleEvent(int eventCode) {
         case SEM_FINGERPRINT_EVENT_GESTURE_SWIPE_DOWN:
         case SEM_FINGERPRINT_EVENT_GESTURE_SWIPE_UP: {
             if (!mSupportsGestures) return;
+
+            // Sample once before the complete press/release sequence. Never gate
+            // the release independently, which could leave a navigation key held.
+            if (::android::base::GetBoolProperty(
+                        "ro.vendor.fingerprint.navigation_toggle", false) &&
+                !::android::base::GetBoolProperty(
+                        "persist.sys.chararom.fp_nav", false)) {
+                return;
+            }
 
             struct input_event event{};
             int keycode = eventCode == SEM_FINGERPRINT_EVENT_GESTURE_SWIPE_UP ? KEY_UP : KEY_DOWN;
